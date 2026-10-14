@@ -41,7 +41,7 @@ jobs:
           cd ge/wine
           git apply --check ../../recipe/patches/wma-loop-zero-seek.patch
           git apply ../../recipe/patches/wma-loop-zero-seek.patch
-          grep -Fq 'Even zero needs a real seek' dlls/winedmo/winedmo_quartz_parser.c
+          grep -Fq 'Seek even to 0: after EOF' dlls/winedmo/winedmo_quartz_parser.c
       - name: Configure ARM64 build
         working-directory: ge
         run: |
