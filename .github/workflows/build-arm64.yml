@@ -1,0 +1,62 @@
+name: Build experimental ARM64 Proton
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 360
+    env:
+      BUILD_NAME: GE-Proton11-9-WMA-Loop-aarch64
+    steps:
+      - name: Checkout patch repository
+        uses: actions/checkout@v4
+        with:
+          path: recipe
+      - name: Checkout GE-Proton 11-9
+        uses: actions/checkout@v4
+        with:
+          repository: GloriousEggroll/proton-ge-custom
+          ref: GE-Proton11-9
+          path: ge
+          fetch-depth: 0
+          submodules: false
+      - name: Install build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ccache fontforge-nox
+          test "$(uname -m)" = aarch64
+          docker --version
+      - name: Initialize GE-Proton submodules
+        working-directory: ge
+        run: git submodule update --init --filter=tree:0 --recursive
+      - name: Apply GE-Proton patches
+        working-directory: ge
+        run: |
+          ./patches/protonprep-valve-staging.sh
+          test -f wine/dlls/winedmo/winedmo_quartz_parser.c
+      - name: Apply experimental WMA loop patch
+        run: |
+          cd ge/wine
+          git apply --check ../../recipe/patches/wma-loop-zero-seek.patch
+          git apply ../../recipe/patches/wma-loop-zero-seek.patch
+          grep -Fq 'Even zero needs a real seek' dlls/winedmo/winedmo_quartz_parser.c
+      - name: Configure ARM64 build
+        working-directory: ge
+        run: |
+          mkdir build
+          cd build
+          ../configure.sh --target-arch=arm64 --build-name="$BUILD_NAME" --container-engine=docker
+      - name: Build Proton
+        working-directory: ge/build
+        run: make -j"$(nproc)" redist
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GE-Proton11-9-WMA-Loop-aarch64
+          path: |
+            ge/build/${{ env.BUILD_NAME }}.tar.gz
+            ge/build/${{ env.BUILD_NAME }}.sha512sum
+          if-no-files-found: error
+          retention-days: 7
