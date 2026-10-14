@@ -1,12 +1,12 @@
-diff --git a/dlls/winedmo/winedmo_quartz_parser.c b/dlls/winedmo/winedmo_quartz_parser.c
 --- a/dlls/winedmo/winedmo_quartz_parser.c
 +++ b/dlls/winedmo/winedmo_quartz_parser.c
-@@ -1575,9 +1575,10 @@ static HRESULT dmo_parser_init_stream(struct strmbase_filter *iface)
+@@ -8,9 +8,10 @@
+ 
      /* Seek to the current position (retain seek state across Stop/Pause/Run). */
      {
          LONGLONG seek_time = filter->source_count ? filter->sources[0]->seek.llCurrent : 0;
 -        if (seek_time)
-+        /* Even zero needs a real seek after EOF before resuming. */
++        /* Seek even to 0: after EOF, the demuxer is not yet at the start. */
 +        if (filter->source_count)
          {
              NTSTATUS status;
