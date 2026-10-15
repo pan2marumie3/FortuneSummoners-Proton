@@ -1,39 +1,84 @@
-# v0.1.0: WMA BGM Loop Fix (ARM64, Experimental)
+# Fortune Summoners WMA Loop Fix v0.1.0 (ARM64・非公式試験版)
 
-**Unofficial, community-built variant of GE-Proton 11-9.** This build is not affiliated with or endorsed by GloriousEggroll, Valve, Wine, or the DroidDeck team.
+**GE-Proton 11-9を基にした、DroidDeck（ARM64）向けの非公式ビルドです。** GloriousEggroll・Valve・Wine・DroidDeckの各開発元とは無関係で、公式サポート対象ではありません。
 
-『Fortune Summoners』（Steam版）のBGMが1周したあと無音になる症状に対する、DroidDeck（ARM64）向け試験ビルドです。
+Steam版『フォーチュンサモナーズ』で、BGMが曲の終端に到達するとループせず無音になる問題への修正を試したものです。
 
-### 変更点
-- Base: [GE-Proton 11-9](https://github.com/GloriousEggroll/proton-ge-custom/tree/GE-Proton11-9), ARM64.
-- Wine DirectShow parser (`dlls/winedmo/winedmo_quartz_parser.c`): when restarting playback from the stopped state, call the demuxer seek function even when the requested position is 0 seconds.
-- 音声ファイルやゲームのEXEには変更を加えていません。
-- この変更は**WMAデコード機能の追加ではありません**。DirectShowの再生位置制御の変更です。
+## 変更点と検証結果
 
-### 実機で確認された内容
-- DroidDeckでSteam版『Fortune Summoners』を起動。
-- Wine内蔵DirectShowを使うとBGMが再生される。
-- 修正版Protonで街のBGMのループ再生に成功。
+- ベース：GE-Proton 11-9（ARM64）。
+- Wine内蔵DirectShowの `winedmo_quartz_parser.c` を小規模修正。停止状態からの再生時、要求位置が0秒でもデマルチプレクサへシークを指示します。
+- **DroidDeck実機で街のBGMのループ再生を確認済み**です。
+- ゲーム本体やWMAファイルは変更していません。**WMAデコーダの追加ではなく、DirectShow再生位置処理の修正**です。
+- 別の曲・別ゲーム・長時間連続再生は未検証です。
 
-### 導入・使用方法
-1. `GE-Proton11-9-WMA-Loop-aarch64.tar.gz` をダウンロードしてAndroidの `Download` フォルダへ保存。
-2. DroidDeckのKonsoleで次を実行：
+## ダウンロードするファイル
 
-   ```sh
-   droiddeck-proton-extra /root/.local/share/Steam /root/Storage/Download/GE-Proton11-9-WMA-Loop-aarch64.tar.gz
-   ```
+Assetsの **`GE-Proton11-9-WMA-Loop-aarch64.tar.gz`** がインストール用です。
+`.sha512sum` は任意の破損チェック用です。その他のライセンスやパッチは[リポジトリ内](https://github.com/pan2marumie3/FortuneSummoners-Proton)で公開しています。
 
-3. Steamを再起動し、『Fortune Summoners』のプロパティ > 互換性から `GE-Proton11-9-WMA-Loop-aarch64` を選択。
-4. ゲーム環境変数に `WINEDLLOVERRIDES=quartz=b;qasf=b` を設定（既存の値があれば統合）。
+## DroidDeckへの導入手順（初めてKonsoleを使う方向け）
 
-**元のProtonは残してください。** 他の曲・ゲームでの互換性や長時間動作は未確認です。
+### 1. ファイルをAndroidに保存する
 
-### ソース・ライセンス
-- [この改変版のソース差分とビルド定義](https://github.com/pan2marumie3/FortuneSummoners-Proton)
-- [ベースのGE-Proton 11-9ソース](https://github.com/GloriousEggroll/proton-ge-custom/tree/GE-Proton11-9)
-- [Valve Wineベースの固定リビジョン](https://github.com/ValveSoftware/wine/tree/981e2f0b9007fd70a6e0ed6119cb18f4164e26f9) （GEのパッチ群適用前）
-- [同梱ソフトのライセンス情報](https://github.com/pan2marumie3/FortuneSummoners-Proton/tree/main/third_party)
-- [改変点のパッチ](https://github.com/pan2marumie3/FortuneSummoners-Proton/blob/main/patches/wma-loop-zero-seek.patch)
-- [再現ビルドのワークフロー](https://github.com/pan2marumie3/FortuneSummoners-Proton/blob/main/.github/workflows/build-arm64.yml)
+ReleaseのAssetsから `GE-Proton11-9-WMA-Loop-aarch64.tar.gz` をダウンロードし、Androidの内部ストレージの **Download（ダウンロード）** フォルダへ保存してください。
 
-Protonは複数のソフトウェア・ライセンスで構成されています。Wineの改変部分はLGPL 2.1の条件に従います。著作権・ライセンス情報を削除しないでください。
+- **`.tar.gz` は展開しないでください。**
+- GitHub Actionsの成果物ZIPではなく、**このReleaseページの`.tar.gz`** を使用します。
+- DroidDeck側に展開用の空き容量が必要です。目安として4GB以上確保してください。
+
+### 2. Linuxデスクトップを開く
+
+1. **DroidDeckアプリのホーム画面**に戻ります。
+2. **Desktop & apps** が未導入ならインストールします。
+3. **Desktop** を起動してKDE Plasmaのデスクトップを開きます。
+4. 画面下部のタスクバーにある **Konsole（ターミナル）** のアイコンをタップします。見つからなければ左下のアプリメニューを開き、`Konsole` と検索して起動してください。
+
+※ここで使用するのはAndroidのターミナルアプリではなく、**DroidDeck内のLinuxデスクトップにあるKonsole** です。
+
+### 3. Konsoleにインストールコマンドを入力する
+
+以下を **1行そのまま** コピーしてKonsoleに貼り付けます。
+
+```sh
+droiddeck-proton-extra /root/.local/share/Steam /root/Storage/Download/GE-Proton11-9-WMA-Loop-aarch64.tar.gz
+```
+
+- 貼り付けはKonsoleの右クリックメニューの **Paste**、または `Ctrl+Shift+V` を使用できます。
+- 入力できたら **Enter（↵）** で実行します。物理キーがない場合は、DroidDeckのセッションメニュー（Backボタン）から **Keyboard** を開き、仮想キーボードのEnterを押してください。
+- 数分程度、展開処理が進みます。完了までKonsoleを閉じないでください。
+
+### 4. 成功表示を確認する
+
+次のような出力があれば導入成功です。
+
+```text
+droiddeck-proton-extra: installed GE-Proton11-9-WMA-Loop-aarch64
+steam-compatibility: adopted GE-Proton11-9-WMA-Loop-aarch64
+```
+
+`No such file` と表示された場合は、ファイルの**保存先・ファイル名**を確認してください。ZIPのまま保存されていないかも確認が必要です。
+
+### 5. Steamで選択してゲームを起動する
+
+1. デスクトップの **Return to Gaming Mode** でゲーム画面に戻り、**Steamを再起動**します。
+2. ライブラリで『Fortune Summoners』を開き、**プロパティ → 互換性**へ進みます。
+3. 互換ツールを強制使用する設定を有効にし、**`GE-Proton11-9-WMA-Loop-aarch64`** を選びます。
+4. DroidDeckの**ゲーム別環境変数**で、以下を指定してください。
+
+   - 変数名：`WINEDLLOVERRIDES`
+   - 値：`quartz=b;qasf=b`
+
+   すでに同じ変数がある場合は重複登録せず、値を統合してください。これはWine内蔵DirectShowを使うために必要な設定です。
+5. ゲームを起動し、街のBGMが2周目に入るか確認します。
+
+**既存のGE-Proton 11-9は削除しないでください。** 本ビルドは独立した互換ツールとして使用します。
+
+## ソースコード・ライセンス
+
+- [改変パッチ](https://github.com/pan2marumie3/FortuneSummoners-Proton/blob/main/patches/wma-loop-zero-seek.patch)
+- [ビルド方法（GitHub Actions）](https://github.com/pan2marumie3/FortuneSummoners-Proton/blob/main/.github/workflows/build-arm64.yml)
+- [GE-Proton 11-9の元ソース](https://github.com/GloriousEggroll/proton-ge-custom/tree/GE-Proton11-9)
+- [ライセンス・著作権表記と改変ソース案内](https://github.com/pan2marumie3/FortuneSummoners-Proton/tree/main/third_party)
+
+Protonは複数のソフトウェアで構成され、コンポーネントごとに別のライセンスが適用されます。配布時はその条件を守ってください。非公式改変版に対する各開発元の保証・サポートはありません。
