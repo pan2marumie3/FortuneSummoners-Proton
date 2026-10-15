@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - name: Checkout README, source patch and license documents
+      - name: Checkout source and license documents
         uses: actions/checkout@v4
-      - name: Verify repository has licensing and source references
+      - name: Verify repository license and source references
         run: |
           set -euo pipefail
           test -s third_party/LICENSE.proton
@@ -24,7 +24,7 @@ jobs:
           test -s third_party/NOTICE.md
           test -s patches/wma-loop-zero-seek.patch
           test -s RELEASE_NOTES_v0.1.0.md
-      - name: Download release binary and verify its original license files
+      - name: Verify release archive checksum and bundled licenses
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -33,75 +33,22 @@ jobs:
           gh release download v0.1.0 --repo "$GITHUB_REPOSITORY" --pattern 'GE-Proton11-9-WMA-Loop-aarch64.tar.gz' --pattern 'GE-Proton11-9-WMA-Loop-aarch64.sha512sum' --dir verify
           (cd verify && sha512sum -c GE-Proton11-9-WMA-Loop-aarch64.sha512sum)
           tar -tzf verify/GE-Proton11-9-WMA-Loop-aarch64.tar.gz > "$RUNNER_TEMP/proton-members.txt"
-          echo 'License-like filenames inside archive:'
-          awk 'tolower($0) ~ /license|copying|notice/ { if (++n <= 90) print }' "$RUNNER_TEMP/proton-members.txt"
-          if ! grep -Eq '(^|/)LICENSE.proton
-          grep -Eq '(^|/)toolmanifest.vdf$' "$RUNNER_TEMP/proton-members.txt"
-          echo "Checksum, archive, and bundled license files verified."
-      - name: Update public release notes
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release edit v0.1.0 --repo "$GITHUB_REPOSITORY" --notes-file RELEASE_NOTES_v0.1.0.md
-      - name: Remove duplicated documentation assets only
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          for asset in SOURCE-AND-LICENSES.md UPSTREAM-dist.LICENSE UPSTREAM-LICENSE.proton Wine-LGPL-2.1.txt wma-loop-zero-seek.patch; do
-            if gh release view v0.1.0 --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fxq "$asset"; then
-              gh release delete-asset v0.1.0 "$asset" --repo "$GITHUB_REPOSITORY" --yes
-            fi
-          done
-      - name: Verify the release has only the two download assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          actual="$(gh release view v0.1.0 --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | LC_ALL=C sort)"
-          expected="$(printf '%s\n' GE-Proton11-9-WMA-Loop-aarch64.sha512sum GE-Proton11-9-WMA-Loop-aarch64.tar.gz | LC_ALL=C sort)"
-          printf 'Visible assets:\n%s\n' "$actual"
-          test "$actual" = "$expected"
- "$RUNNER_TEMP/proton-members.txt"; then
-            echo 'MISSING exact LICENSE.proton filename (investigate packaging)' >&2
+          echo 'License-related paths in the binary archive:'
+          awk 'tolower($0) ~ /license|copying|notice/ { if (++n <= 80) print }' "$RUNNER_TEMP/proton-members.txt"
+          if ! grep -Eq '(^|/)LICENSE.proton$' "$RUNNER_TEMP/proton-members.txt"; then
+            echo 'Missing LICENSE.proton in archive; stopped without deleting assets' >&2
             exit 1
           fi
-          if ! grep -Eq '(^|/)dist.LICENSE
-          grep -Eq '(^|/)toolmanifest.vdf$' "$RUNNER_TEMP/proton-members.txt"
-          echo "Checksum, archive, and bundled license files verified."
-      - name: Update public release notes
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release edit v0.1.0 --repo "$GITHUB_REPOSITORY" --notes-file RELEASE_NOTES_v0.1.0.md
-      - name: Remove duplicated documentation assets only
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          for asset in SOURCE-AND-LICENSES.md UPSTREAM-dist.LICENSE UPSTREAM-LICENSE.proton Wine-LGPL-2.1.txt wma-loop-zero-seek.patch; do
-            if gh release view v0.1.0 --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fxq "$asset"; then
-              gh release delete-asset v0.1.0 "$asset" --repo "$GITHUB_REPOSITORY" --yes
-            fi
-          done
-      - name: Verify the release has only the two download assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          actual="$(gh release view v0.1.0 --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | LC_ALL=C sort)"
-          expected="$(printf '%s\n' GE-Proton11-9-WMA-Loop-aarch64.sha512sum GE-Proton11-9-WMA-Loop-aarch64.tar.gz | LC_ALL=C sort)"
-          printf 'Visible assets:\n%s\n' "$actual"
-          test "$actual" = "$expected"
- "$RUNNER_TEMP/proton-members.txt"; then
-            echo 'MISSING exact dist.LICENSE filename (investigate packaging)' >&2
+          if ! grep -Eq '(^|/)dist.LICENSE$' "$RUNNER_TEMP/proton-members.txt"; then
+            echo 'Missing dist.LICENSE in archive; stopped without deleting assets' >&2
             exit 1
           fi
           grep -Eq '(^|/)toolmanifest.vdf$' "$RUNNER_TEMP/proton-members.txt"
-          echo "Checksum, archive, and bundled license files verified."
       - name: Update public release notes
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release edit v0.1.0 --repo "$GITHUB_REPOSITORY" --notes-file RELEASE_NOTES_v0.1.0.md
-      - name: Remove duplicated documentation assets only
+      - name: Remove duplicate documentation assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -111,12 +58,12 @@ jobs:
               gh release delete-asset v0.1.0 "$asset" --repo "$GITHUB_REPOSITORY" --yes
             fi
           done
-      - name: Verify the release has only the two download assets
+      - name: Verify only tarball and checksum remain
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           actual="$(gh release view v0.1.0 --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | LC_ALL=C sort)"
           expected="$(printf '%s\n' GE-Proton11-9-WMA-Loop-aarch64.sha512sum GE-Proton11-9-WMA-Loop-aarch64.tar.gz | LC_ALL=C sort)"
-          printf 'Visible assets:\n%s\n' "$actual"
+          printf 'Assets:\n%s\n' "$actual"
           test "$actual" = "$expected"
