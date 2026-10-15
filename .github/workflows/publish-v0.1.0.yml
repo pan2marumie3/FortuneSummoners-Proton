@@ -1,0 +1,74 @@
+name: Publish WMA Loop Fix v0.1.0
+on:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout source and release notes
+        uses: actions/checkout@v4
+      - name: Skip if already published
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.1.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Download verified successful build artifact
+        if: steps.existing.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          gh run download 38655835800 --repo "$GITHUB_REPOSITORY" --name "GE-Proton11-9-WMA-Loop-aarch64" --dir release-assets
+          ls -lh release-assets/
+          test -s release-assets/GE-Proton11-9-WMA-Loop-aarch64.tar.gz
+          test -s release-assets/GE-Proton11-9-WMA-Loop-aarch64.sha512sum
+      - name: Verify checksum and Proton manifest
+        if: steps.existing.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          (cd release-assets && sha512sum -c GE-Proton11-9-WMA-Loop-aarch64.sha512sum)
+          tar -tzf release-assets/GE-Proton11-9-WMA-Loop-aarch64.tar.gz > "$RUNNER_TEMP/proton-file-list.txt"
+          grep -q 'toolmanifest.vdf' "$RUNNER_TEMP/proton-file-list.txt"
+          echo "Proton archive, manifest and checksum verified"
+      - name: Preserve licenses and patch alongside binary
+        if: steps.existing.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          cp third_party/LICENSE.proton release-assets/UPSTREAM-LICENSE.proton
+          cp third_party/dist.LICENSE release-assets/UPSTREAM-dist.LICENSE
+          cp third_party/Wine-COPYING.LIB release-assets/Wine-LGPL-2.1.txt
+          cp third_party/NOTICE.md release-assets/SOURCE-AND-LICENSES.md
+          cp patches/wma-loop-zero-seek.patch release-assets/wma-loop-zero-seek.patch
+      - name: Publish GitHub prerelease
+        if: steps.existing.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v0.1.0 \
+            release-assets/GE-Proton11-9-WMA-Loop-aarch64.tar.gz \
+            release-assets/GE-Proton11-9-WMA-Loop-aarch64.sha512sum \
+            release-assets/UPSTREAM-LICENSE.proton \
+            release-assets/UPSTREAM-dist.LICENSE \
+            release-assets/Wine-LGPL-2.1.txt \
+            release-assets/SOURCE-AND-LICENSES.md \
+            release-assets/wma-loop-zero-seek.patch \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Fortune Summoners WMA Loop Fix v0.1.0 (ARM64, Unofficial)" \
+            --notes-file RELEASE_NOTES_v0.1.0.md \
+            --target "$GITHUB_SHA" \
+            --prerelease
